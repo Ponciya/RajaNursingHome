@@ -1,0 +1,22 @@
+-- Villages Master
+CREATE TABLE IF NOT EXISTS villages (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(20) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  taluk VARCHAR(100) NULL,
+  district VARCHAR(100) NULL,
+  state VARCHAR(100) NULL,
+  pincode VARCHAR(10) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_village_code (code),
+  UNIQUE KEY uq_village_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Extend patients table
+ALTER TABLE patients ADD COLUMN guardian_name VARCHAR(150) NULL;
+ALTER TABLE patients ADD COLUMN guardian_relation VARCHAR(30) NULL;
+ALTER TABLE patients ADD COLUMN village_id BIGINT UNSIGNED NULL;
+ALTER TABLE patients ADD CONSTRAINT fk_patients_village 
+  FOREIGN KEY (village_id) REFERENCES villages(id);

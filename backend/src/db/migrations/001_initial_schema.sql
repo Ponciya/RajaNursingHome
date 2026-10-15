@@ -1,0 +1,207 @@
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL UNIQUE,
+  applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  full_name VARCHAR(150) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('ADMIN', 'BILLING_STAFF') NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_users_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS doctors (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  qualification VARCHAR(150) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_doctors_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS patient_number_sequences (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  next_number INT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS patients (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  patient_code VARCHAR(20) NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  age INT UNSIGNED NULL,
+  gender ENUM('MALE', 'FEMALE', 'OTHER') NOT NULL,
+  date_of_birth DATE NULL,
+  phone VARCHAR(20) NULL,
+  address VARCHAR(500) NULL,
+  emergency_contact VARCHAR(150) NULL,
+  patient_type VARCHAR(30) NOT NULL DEFAULT 'OP',
+  default_doctor_id BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_patients_code (patient_code),
+  KEY idx_patients_phone (phone),
+  KEY idx_patients_name (name),
+  CONSTRAINT fk_patients_doctor FOREIGN KEY (default_doctor_id) REFERENCES doctors (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS billing_types (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(20) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  bill_prefix VARCHAR(20) NOT NULL,
+  item_source ENUM('SERVICE', 'PRODUCT', 'MIXED') NOT NULL,
+  print_layout ENUM('PHARMACY', 'SERVICE') NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_billing_types_code (code),
+  UNIQUE KEY uq_billing_types_prefix (bill_prefix)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bill_number_sequences (
+  billing_type_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  next_number INT UNSIGNED NOT NULL DEFAULT 1,
+  CONSTRAINT fk_bill_seq_type FOREIGN KEY (billing_type_id) REFERENCES billing_types (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS products (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  batch_number VARCHAR(50) NULL,
+  expiry_date DATE NULL,
+  unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  gst_applicable TINYINT(1) NOT NULL DEFAULT 0,
+  hsn_code VARCHAR(20) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_products_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS services (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  billing_type_id BIGINT UNSIGNED NULL,
+  unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  gst_applicable TINYINT(1) NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_services_name (name),
+  CONSTRAINT fk_services_billing_type FOREIGN KEY (billing_type_id) REFERENCES billing_types (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hospital_settings (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  hospital_name VARCHAR(200) NOT NULL,
+  address_line1 VARCHAR(200) NOT NULL,
+  address_line2 VARCHAR(200) NULL,
+  landline VARCHAR(30) NULL,
+  phone VARCHAR(30) NULL,
+  gstin VARCHAR(20) NULL,
+  drug_licence_no VARCHAR(50) NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS gst_settings (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  gst_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  default_cgst_share DECIMAL(5,2) NOT NULL DEFAULT 50.00,
+  default_sgst_share DECIMAL(5,2) NOT NULL DEFAULT 50.00,
+  igst_mode TINYINT(1) NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS print_settings (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  paper_size ENUM('A4', 'COMPACT') NOT NULL DEFAULT 'A4',
+  show_gstin TINYINT(1) NOT NULL DEFAULT 1,
+  footer_text VARCHAR(200) NOT NULL DEFAULT 'Thank you / Visit Again',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bills (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bill_number VARCHAR(30) NULL,
+  billing_type_id BIGINT UNSIGNED NOT NULL,
+  patient_id BIGINT UNSIGNED NOT NULL,
+  doctor_id BIGINT UNSIGNED NOT NULL,
+  bill_date DATE NOT NULL,
+  bill_time TIME NOT NULL,
+  status ENUM('DRAFT', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  taxable_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  cgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  sgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  igst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  tax_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  grand_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  created_by BIGINT UNSIGNED NOT NULL,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_bills_number (bill_number),
+  KEY idx_bills_date (bill_date),
+  KEY idx_bills_status (status),
+  KEY idx_bills_patient (patient_id),
+  KEY idx_bills_doctor (doctor_id),
+  CONSTRAINT fk_bills_type FOREIGN KEY (billing_type_id) REFERENCES billing_types (id),
+  CONSTRAINT fk_bills_patient FOREIGN KEY (patient_id) REFERENCES patients (id),
+  CONSTRAINT fk_bills_doctor FOREIGN KEY (doctor_id) REFERENCES doctors (id),
+  CONSTRAINT fk_bills_created_by FOREIGN KEY (created_by) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bill_items (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bill_id BIGINT UNSIGNED NOT NULL,
+  line_no INT UNSIGNED NOT NULL,
+  item_kind ENUM('PRODUCT', 'SERVICE') NOT NULL,
+  source_product_id BIGINT UNSIGNED NULL,
+  source_service_id BIGINT UNSIGNED NULL,
+  description VARCHAR(250) NOT NULL,
+  batch_number VARCHAR(50) NULL,
+  expiry_date DATE NULL,
+  quantity DECIMAL(10,2) NOT NULL,
+  unit_price DECIMAL(12,2) NOT NULL,
+  discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  gst_applicable TINYINT(1) NOT NULL DEFAULT 0,
+  gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  taxable_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  cgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  sgst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  igst_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  tax_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  line_total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  UNIQUE KEY uq_bill_line (bill_id, line_no),
+  CONSTRAINT fk_items_bill FOREIGN KEY (bill_id) REFERENCES bills (id),
+  CONSTRAINT fk_items_product FOREIGN KEY (source_product_id) REFERENCES products (id),
+  CONSTRAINT fk_items_service FOREIGN KEY (source_service_id) REFERENCES services (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bill_id BIGINT UNSIGNED NOT NULL,
+  payment_method ENUM('CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'OTHER') NOT NULL,
+  amount_received DECIMAL(12,2) NOT NULL,
+  payer_name VARCHAR(150) NULL,
+  upi_id VARCHAR(80) NULL,
+  transaction_reference VARCHAR(80) NULL,
+  received_by VARCHAR(150) NOT NULL,
+  paid_at DATETIME NOT NULL,
+  notes VARCHAR(500) NULL,
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_payments_bill (bill_id),
+  CONSTRAINT fk_payments_bill FOREIGN KEY (bill_id) REFERENCES bills (id),
+  CONSTRAINT fk_payments_created_by FOREIGN KEY (created_by) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
